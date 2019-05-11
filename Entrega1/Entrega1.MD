@@ -28,6 +28,7 @@ SI, SUMAR LOCALMENTE EN PARCIAL Y SUMAR PARCIALES (PARALELIZAR SUMA POR CHUNKS)
 * La condicion del for no funciona, necesita que matrices/threads sea redondo
 
 * Hacer q cada thread agarre mtx/cores o procesar una matrix por thread? (join de a lo sumo 4 procesos hasta q no haya más matrices) 
+CADA PROC AGARRA VARIAS MATRICES
 
 * Como parametrizar cantidad de matrices (solo para ej2p)
 CAMBIAR array[] POR double**
