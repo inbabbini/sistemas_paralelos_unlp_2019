@@ -19,6 +19,7 @@ int main(int argc,char*argv[]){
   }
   N=atoi(argv[1]);
   int numThreads=atoi(argv[2]);
+  int chunk = (N/numThreads);
   omp_set_num_threads(numThreads);
  
    
@@ -32,19 +33,26 @@ int main(int argc,char*argv[]){
    for(j=0;j<N;j++){
 	A[i*N+j]=1;
 	B[i+j*N]=1;
+   C[i*N+j]=0;
    }
   }   
 
   timetick = dwalltime();
  //Realiza la multiplicacion
-  for(i=0;i<N;i++){
-   for(j=0;j<N;j++){
-    C[i*N+j]=0;
-    for(k=0;k<N;k++){
-	C[i*N+j]= C[i*N+j] + A[i*N+k]*B[k+j*N];
-    }
+ double sum;
+ #pragma omp parallel shared(C,A,B) private(i,j,k)
+ {
+   for(i=0;i<N;i++){
+      for(j=0;j<N;j++){
+         sum = 0;
+         #pragma omp for schedule(dynamic, chunk) reduction(+:sum)
+         for(k=0;k<N;k++){
+            sum += A[i*N+k]*B[k+j*N];
+         }
+         C[i*N+j] = sum;
+      }
    }
-  }   
+ }
   printf("Tiempo en segundos %f \n", dwalltime() - timetick);
 
  //Verifica el resultado

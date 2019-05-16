@@ -18,6 +18,7 @@ de matrices individualmente con respecto a tratarlas en conjunto.
 
 //Globals
 int N = 512;
+int thread_count = 2;
 int DEBUG_MODE = 0;
 int JOINT_MUL = 0;
 int USE_TRANSPOSE = 0;
@@ -25,32 +26,32 @@ int USE_TRANSPOSE = 0;
 //Functions
 double dwalltime();
 void printFirstRow();
-void transpose(double* matrix);
 
 int main(int argc, char const *argv[])
 {
     int i,j,k;
     double timetick, pm_timetick; 
     
-     if ((argc != 4) || 
+     if ((argc != 5) || 
         ((N = atoi(argv[1])) <= 0) || 
-        (strcmp(argv[2], "S") != 0 && strcmp(argv[2], "J") != 0) || 
-        (strcmp(argv[3], "Y") != 0 && strcmp(argv[3], "N") != 0))
+        ((thread_count = atoi(argv[2])) <= 0) || 
+        (strcmp(argv[3], "S") != 0 && strcmp(argv[3], "J") != 0) || 
+        (strcmp(argv[4], "Y") != 0 && strcmp(argv[4], "N") != 0))
     {
-        printf("\n Usar: %s N: Dimension de la matriz (NxN)\n J|S: multiplicacion de matrices Juntas o Separadas\n Y|N: usar A transpuesta\n ", argv[0]);
-        printf("args: %s | %s | %s\n", argv[1], argv[2], argv[3]);
+        printf("\n Usar: %s N: Dimension de la matriz (NxN)\n n_threads: Cantidad de threads\n J|S: multiplicacion de matrices Juntas o Separadas\n Y|N: usar A transpuesta\n ", argv[0]);
+        printf("args: %s | %s | %s | %s\n", argv[1], argv[2], argv[3], argv[4]);
         exit(1);
     }
     
     //config joint or separated multiplications
-    if(strcmp(argv[2], "J") == 0) {
+    if(strcmp(argv[3], "J") == 0) {
         JOINT_MUL = 1;
         printf("Haciendo multiplicaciones juntas\n");        
     } else {
         printf("Haciendo multiplicaciones separadas\n");        
     }
 
-    if(strcmp(argv[3], "Y") == 0){
+    if(strcmp(argv[4], "Y") == 0){
         USE_TRANSPOSE = 1;
         printf("Usando multiplicación por Transpuesta, AA = A*TA\n");
     } else {
@@ -230,20 +231,4 @@ void printFirstRow(double *matrix, char *name)
         printf("%f,", matrix[i]);
     }
     printf("]\n\n");    
-}
-
-void Transpose(double *matrix)
-{
-    double v;
-    for (int i = 0; i < N; i++)
-    {
-        for (int j = i + 1; j < N; j++)
-        {
-            v = matrix[j*N+i];
-            matrix[i*N+j] = matrix[j*N+i];
-            matrix[j*N+i] = v;
-        }
-        
-    }
-    
 }
