@@ -6,14 +6,14 @@
 * Inicializar ABCD por separado? (reducir cache overhead) 
 NO TIENE SENTIDO, NO SE CUENTA
 
-* Guardar B D por columnas? mejoraria la multiplicacion por acceso por columnas
+* Guardar B D por columnas? mejoraria la multiplicacion por acceso por columnas **DONE**
 SI
 
-* Objetivo de analizar tiempo de AA (paralelo? secuencial? ambos?) pareciera crecer como el resto, incluso tardar mas
-COMPARAR A + A TRASNPUESTA (contar tiempo de transponer) con ACCEDER A FILA y COLUMNA
+* Objetivo de analizar tiempo de AA (paralelo? secuencial? ambos?) pareciera crecer como el resto, incluso tardar mas **DONE: generado transp_test.c para comparar AxA vs AxTA**
+COMPARAR A + A TRASNPUESTA (contar tiempo de transponer) con ACCEDER A FILA y COLUMNA **DONE**
 
 * paralelizar calculo de cada matriz individual AA AB CD, o paralelizar calculo de cada elemento de la matriz?
-POR ELEMENTO, comparar 3 mul juntas con por separado
+POR ELEMENTO, comparar 3 mul juntas con por separado **ej_s_join_mul.c**
 
 
 ### Ejercicio 2)

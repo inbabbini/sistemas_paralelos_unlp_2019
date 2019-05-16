@@ -93,7 +93,7 @@ int main(int argc, char const *argv[])
         for(j=0;j<N;j++){
             CD[i*N+j]=0;
             for(k=0;k<N;k++){
-                CD[i*N+j]= CD[i*N+j] + A[i*N+k]*B[k+j*N];
+                CD[i*N+j]= CD[i*N+j] + C[i*N+k]*D[k+j*N];
             }
         }
     }
