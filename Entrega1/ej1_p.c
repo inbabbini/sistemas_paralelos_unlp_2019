@@ -14,8 +14,6 @@ de matrices individualmente con respecto a tratarlas en conjunto.
 #include <string.h>
 #include <omp.h>
 
-
-
 //Globals
 int N = 512;
 int thread_count = 2;
@@ -46,17 +44,24 @@ int main(int argc, char const *argv[])
     //config joint or separated multiplications
     if(strcmp(argv[3], "J") == 0) {
         JOINT_MUL = 1;
-        printf("Haciendo multiplicaciones juntas\n");        
+        printf("Doing Joint multiplications\n");        
     } else {
-        printf("Haciendo multiplicaciones separadas\n");        
+        printf("Doing Separated multiplications\n");        
     }
 
+    //config use of transposed A matrix
     if(strcmp(argv[4], "Y") == 0){
         USE_TRANSPOSE = 1;
-        printf("Usando multiplicación por Transpuesta, AA = A*TA\n");
+        printf("Using A transposed, AA = A*TA\n");
     } else {
-        printf("Usando multiplicación normal, AA = A*A\n");
+        printf("Using regular A, AA = A*A\n");
     }
+
+    //config number of threads count and OMP
+    int thread_count=atoi(argv[2]);
+    int chunk = (N/thread_count);
+    omp_set_num_threads(thread_count); 
+    
 
     //Declare and alloc matrices
     double *A, *TA, *B, *C, *D, *AA, *AB, *CD, *AAABCD;
@@ -88,14 +93,18 @@ int main(int argc, char const *argv[])
     if(USE_TRANSPOSE)
     {
         //TRANSPOSE A for better access time
-        double v;
-        for (int i = 0; i < N; i++)
+        #pragma omp parallel shared(A,TA) private(i,j)
         {
-            TA[i*N+i] = A[i*N+i];
-            for (int j = i + 1; j < N; j++)
+            for (i = 0; i < N; i++)
             {
-                TA[i*N+j] = A[j*N+i];
-                TA[j*N+i] = A[i*N+j];
+                TA[i*N+i] = A[i*N+i];
+
+                #pragma omp for schedule(dynamic, chunk)
+                for (j = i + 1; j < N; j++)
+                {
+                    TA[i*N+j] = A[j*N+i];
+                    TA[j*N+i] = A[i*N+j];
+                }
             }
         }
     }
@@ -103,63 +112,83 @@ int main(int argc, char const *argv[])
     if(JOINT_MUL)
     {
         pm_timetick = dwalltime();
-        for(i=0;i<N;i++){
-            for(j=0;j<N;j++){
-                AA[i*N+j]=0;
-                for(k=0;k<N;k++){
-                    //Process AA = AxTA
-                    //AA[i*N+j]= AA[i*N+j] + A[i*N+k]*TA[i*N+k];
-                    if(USE_TRANSPOSE){AA[i*N+j]= AA[i*N+j] + A[i*N+k]*TA[i*N+k];} else {AA[i*N+j]= AA[i*N+j] + A[i*N+k]*A[k+j*N];}
-                    //Process AB = AxB
-                    AB[i*N+j]= AB[i*N+j] + A[i*N+k]*B[k+j*N];
-                    //Process CD = CxD
-                    CD[i*N+j]= CD[i*N+j] + C[i*N+k]*D[k+j*N];
+        #pragma omp parallel shared(A, TA, B, C, D, AA, AB, CD) private(i,j,k)
+        {
+            for(i=0;i<N;i++){
+                #pragma omp for schedule(dynamic, chunk)
+                for(j=0;j<N;j++){
+                    AA[i*N+j]=0;
+                    for(k=0;k<N;k++){
+                        //Process AA = AxTA
+                        //AA[i*N+j]= AA[i*N+j] + A[i*N+k]*TA[i*N+k];
+                        if(USE_TRANSPOSE){AA[i*N+j]= AA[i*N+j] + A[i*N+k]*TA[i*N+k];} else {AA[i*N+j]= AA[i*N+j] + A[i*N+k]*A[k+j*N];}
+                        //Process AB = AxB
+                        AB[i*N+j]= AB[i*N+j] + A[i*N+k]*B[k+j*N];
+                        //Process CD = CxD
+                        CD[i*N+j]= CD[i*N+j] + C[i*N+k]*D[k+j*N];
+                    }
                 }
             }
         }
         printf("All matrixes (AA, AB, CD) joined took time in seconds: %f \n", dwalltime() - pm_timetick);
     }
     else
-    {
+    {   
         //Process AA = A x TA
         pm_timetick = dwalltime();
-        for(i=0;i<N;i++){
-            for(j=0;j<N;j++){
-                AA[i*N+j]=0;
-                for(k=0;k<N;k++){
-                    //AA[i*N+j]= AA[i*N+j] + A[i*N+k]*TA[i*N+k];
-                    if(USE_TRANSPOSE){AA[i*N+j]= AA[i*N+j] + A[i*N+k]*TA[i*N+k];} else {AA[i*N+j]= AA[i*N+j] + A[i*N+k]*A[k+j*N];}
+        #pragma omp parallel shared(A,TA, AA) private(i,j,k)
+        {
+            for(i=0;i<N;i++){
+                #pragma omp for schedule(dynamic, chunk)
+                for(j=0;j<N;j++){
+                    AA[i*N+j]=0;
+                    for(k=0;k<N;k++){
+                        //AA[i*N+j]= AA[i*N+j] + A[i*N+k]*TA[i*N+k];
+                        if(USE_TRANSPOSE){AA[i*N+j]= AA[i*N+j] + A[i*N+k]*TA[i*N+k];} else {AA[i*N+j]= AA[i*N+j] + A[i*N+k]*A[k+j*N];}
+                    }
                 }
             }
         }
 
         //Process AB = AxB
-        for(i=0;i<N;i++){
-            for(j=0;j<N;j++){
-                AB[i*N+j]=0;
-                for(k=0;k<N;k++){
-                    AB[i*N+j]= AB[i*N+j] + A[i*N+k]*B[k+j*N];
+        #pragma omp parallel shared(A, B, AB) private(i,j,k)
+        {
+            for(i=0;i<N;i++){
+                #pragma omp for schedule(dynamic, chunk)
+                for(j=0;j<N;j++){
+                    AB[i*N+j]=0;
+                    for(k=0;k<N;k++){
+                        AB[i*N+j]= AB[i*N+j] + A[i*N+k]*B[k+j*N];
+                    }
                 }
             }
         }
 
         //Process CD = CxD
-        for(i=0;i<N;i++){
-            for(j=0;j<N;j++){
-                CD[i*N+j]=0;
-                for(k=0;k<N;k++){
-                    CD[i*N+j]= CD[i*N+j] + C[i*N+k]*D[k+j*N];
+        #pragma omp parallel shared(C, D, CD) private(i,j,k)
+        {
+            for(i=0;i<N;i++){
+                #pragma omp for schedule(dynamic, chunk)
+                for(j=0;j<N;j++){
+                    CD[i*N+j]=0;
+                    for(k=0;k<N;k++){
+                        CD[i*N+j]= CD[i*N+j] + C[i*N+k]*D[k+j*N];
+                    }
                 }
             }
         }
         printf("All matrixes (AA, AB, CD) separeted took time in seconds: %f \n", dwalltime() - pm_timetick);        
     }
 
-    //Process AAABCD
-    pm_timetick = dwalltime();
-    for(i=0;i<N;i++){
-        for(j=0;j<N;j++){
-            AAABCD[i*N+j]= AA[i*N+j] + AB[i*N+j] + CD[i*N+j];
+    #pragma omp parallel shared(AA, AB, CD, AAABCD) private(i,j)
+    {
+        //Process AAABCD
+        pm_timetick = dwalltime();
+        for(i=0;i<N;i++){
+            #pragma omp for schedule(dynamic, chunk)
+            for(j=0;j<N;j++){
+                AAABCD[i*N+j]= AA[i*N+j] + AB[i*N+j] + CD[i*N+j];
+            }
         }
     }
     printf("Matrix %s took time in seconds: %f \n", "AAABCD", dwalltime() - pm_timetick);

@@ -13,7 +13,7 @@ SI
 COMPARAR A + A TRASNPUESTA (contar tiempo de transponer) con ACCEDER A FILA y COLUMNA **DONE**
 
 * paralelizar calculo de cada matriz individual AA AB CD, o paralelizar calculo de cada elemento de la matriz?
-POR ELEMENTO, comparar 3 mul juntas con por separado **ej_s_join_mul.c**
+POR ELEMENTO, comparar 3 mul juntas con por separado **ej_s_join_mul.c** **DONE**
 
 
 ### Ejercicio 2)
