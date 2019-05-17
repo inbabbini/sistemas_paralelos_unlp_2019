@@ -17,9 +17,14 @@ Evaluar para N=512, 1024 y 2048 y m lo suficiente grande para que el tiempo del 
 #include <float.h>
 #include <string.h>
 
+#define DEBUG_MODE 0
+
 //Globals
 int N = 512;
 int matrixCount = 5;
+
+double **matrixes;
+double *total;
 
 //Functions
 double dwalltime();
@@ -30,17 +35,20 @@ int main(int argc, char const *argv[])
 {
     int m, i, j, high, low;
     double maxM, minM, avgM, e, timetick;
+    high = 100;
+    low = 0;
 
-    if ((argc != 3) || ((N = atoi(argv[1])) <= 0) || ((matrixCount = atoi(argv[2])) <= 0))
+    if ((argc != 3) || 
+        ((N = atoi(argv[1])) <= 0) || 
+        ((matrixCount = atoi(argv[2])) <= 0))
     {
-        printf("\nUsar: %s n matrixCount\n  n: Dimension de la matriz (nxn X nxn)\n matrixCount: cantidad de matrices\n", argv[0]);
+        printf("\nUsar: %s n matrixCount\nn: Dimension de la matriz (nxn X nxn)\nmatrixCount: cantidad de matrices\n", argv[0]);
         exit(1);
     }
 
-    timetick = dwalltime();
+    printf("\n---Process started---\nMatrix Count: %i\n", matrixCount);
 
     //Declare and alloc Total
-    double *total;
     total = (double*)malloc(sizeof(double)*N*N);
     //Initialize Total
     for(i=0;i<N;i++){
@@ -50,20 +58,30 @@ int main(int argc, char const *argv[])
         }
     }
 
-    //Declare and alloc array of matrixes
-    double *array[matrixCount];
-    for(int i = 0; i < matrixCount; i++)
+    //alloc matrixes
+    matrixes = (double**)malloc(sizeof(double*) * matrixCount);
+    for (int i = 0; i < matrixCount; i++)
     {
-        array[i] = (double*)malloc(sizeof(double)*N*N);
+        matrixes[i] = (double*)malloc(sizeof(double)*N*N);
     }
 
-    //Array accessor
-    double *(*p)[] = &array;
+    for (int m = 0; m < matrixCount; m++)
+    {
+        for(i=0;i<N;i++)
+        {
+            for(j=0;j<N;j++)
+            {
+                matrixes[m][i*N+j] = ((double)rand() * ( high - low ) ) / (double)RAND_MAX + low;
+            }
+        }
+    }
 
     //Initialize array of matrixes with random numbers
-    high = 100;
-    low = 0;
     
+    
+    //Start taking time
+    printf("Starting calculations\n");
+    timetick = dwalltime();
 
     for(int m = 0; m < matrixCount; m++)
     {
@@ -74,21 +92,18 @@ int main(int argc, char const *argv[])
         for(i=0;i<N;i++){
             for(j=0;j<N;j++)
             {
-                //Assign random value
-                (*p)[m][i*N+j] = ((double)rand() * ( high - low ) ) / (double)RAND_MAX + low;
-
                 //Find Max
-                if((*p)[m][i*N+j] > maxM)
+                if(matrixes[m][i*N+j] > maxM)
                 {
-                    maxM = (*p)[m][i*N+j];
+                    maxM = matrixes[m][i*N+j];
                 } 
-                else if((*p)[m][i*N+j] < minM)
+                else if(matrixes[m][i*N+j] < minM)
                 {
-                    minM = (*p)[m][i*N+j];
+                    minM = matrixes[m][i*N+j];
                 }
 
                 //sum Avg
-                avgM = avgM + (*p)[m][i*N+j];
+                avgM = avgM + matrixes[m][i*N+j];
             }
         }
 
@@ -99,30 +114,32 @@ int main(int argc, char const *argv[])
         e = (maxM - minM) / avgM;
 
         //Print Matrix Data
-        printf("\n Matrix %i: maxM = %f | minM = %f | avgM = %f | e = %f \n", m, maxM, minM, avgM, e);
-        printFirstRow((*p)[m], "Random");
+        if(DEBUG_MODE){printf("Matrix %i: maxM = %f | minM = %f | avgM = %f | e = %f \n", m, maxM, minM, avgM, e);}
+        if(DEBUG_MODE){printFirstRow(matrixes[m], "Random");}
 
         //calculate e * Mi, then add to Total matrix
         for(i=0;i<N;i++)
         {
             for(j=0;j<N;j++)
             {
-                total[i*N+j] = total[i*N+j] + ((*p)[m][i*N+j] * e);
+                total[i*N+j] = total[i*N+j] + (matrixes[m][i*N+j] * e);
             }
         }
     }
 
     //Print some results
-    printFirstRow(total, "Total");
+    if(DEBUG_MODE){printFirstRow(total, "Total");}
     
-    printf("Tiempo en segundos %f \n", dwalltime() - timetick);
+    //Print process time
+    printf("Time in seconds: %f\n", dwalltime() - timetick);
     
     //FreeMemory
     for(int m = 0; m < matrixCount; m++)
     {
-        free((*p)[m]);
+        free(matrixes[m]);
     }
     free(total);
+    free(matrixes);
 
     return 0;
 }

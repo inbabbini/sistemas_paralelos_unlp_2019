@@ -19,19 +19,17 @@ POR ELEMENTO, comparar 3 mul juntas con por separado **ej_s_join_mul.c** **DONE*
 ### Ejercicio 2)
 
 **Notas**:
-* Mover al liberación del espacio a los threads? 
-NO SE CUENTA
-
 * Hacer la sumatoria fuera de los threads? Todas de una 
 SI, SUMAR LOCALMENTE EN PARCIAL Y SUMAR PARCIALES (PARALELIZAR SUMA POR CHUNKS)
 
 * La condicion del for no funciona, necesita que matrices/threads sea redondo
+**DONE: usar numeros redondos**
 
 * Hacer q cada thread agarre mtx/cores o procesar una matrix por thread? (join de a lo sumo 4 procesos hasta q no haya más matrices) 
-CADA PROC AGARRA VARIAS MATRICES
+CADA PROC AGARRA VARIAS MATRICES **DONE**
 
 * Como parametrizar cantidad de matrices (solo para ej2p)
-CAMBIAR array[] POR double**
+CAMBIAR array[] POR double** **DONE**
 
 
 **Notas Generales**

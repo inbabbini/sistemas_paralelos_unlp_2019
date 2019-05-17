@@ -19,20 +19,20 @@ Evaluar para N=512, 1024 y 2048 y m lo suficiente grande para que el tiempo del 
 #include <pthread.h>
 
 //Constants
-#define DEBUG_MODE 1
-#define THREAD_COUNT 4
+#define DEBUG_MODE 0
 #define DEFAULT_N 512
-#define DEFAULT_MATRIXCOUNT 5
 
 //Globals
 int N = DEFAULT_N;
-int matrixCount = DEFAULT_MATRIXCOUNT;
+int matrixCount;
+int THREAD_COUNT;
 int chunk_size;
-double *array[DEFAULT_MATRIXCOUNT];
 
 int rand_low = 0;
 int rand_high = 100;
 
+double **matrixes;
+double **partialTotalMatrixes;
 double *totalMatrix;
 pthread_mutex_t add_matrix_lock;
 
@@ -41,14 +41,15 @@ double dwalltime();
 void printFirstRow(double *matrix, char *name);
 void *processAndAddMatrix(void *matrix_ptr);
 void *processAndAddMatrixes(void *task_id);
-void debugP(char *string);
-
 
 int main(int argc, char const *argv[])
 {
-    if ((argc != 3) || ((N = atoi(argv[1])) <= 0) || ((matrixCount = atoi(argv[2])) <= 0))
+    if ((argc != 4) || 
+    ((N = atoi(argv[1])) <= 0) || 
+    ((matrixCount = atoi(argv[2])) <= 0) ||
+    ((THREAD_COUNT = atoi(argv[3]))) <= 0)
     {
-        printf("\nUsar: %s n matrixCount\n  n: Dimension de la matriz (nxn X nxn)\n matrixCount: cantidad de matrices\n", argv[0]);
+        printf("\nUsar: %s n matrixCount\n n: Dimension de la matriz (nxn X nxn)\n matrixCount: cantidad de matrices\n t_count: cantidad de threads\n", argv[0]);
         exit(1);
     }
 
@@ -56,51 +57,80 @@ int main(int argc, char const *argv[])
     pthread_attr_t attr;
     pthread_t threads[THREAD_COUNT];
     pthread_attr_init(&attr);
-
-    chunk_size = (matrixCount/THREAD_COUNT);
-    printf("Chunk size: %i\n", chunk_size);
-
     int i, j;
     double timetick;
+
+    chunk_size = (matrixCount/THREAD_COUNT);
+    printf("\n---Process started---\nThread Count: %i\nMatrix Count: %i\nChunk size: %i\n", THREAD_COUNT, matrixCount, chunk_size);
+
 
     //Init mutex for adding results to totalMatrix
     pthread_mutex_init(&add_matrix_lock, NULL);
 
-    timetick = dwalltime();
+    //alloc partial total matrixes
+    if(DEBUG_MODE) {printf("Allocing partial Total Matrixes\n");}
+    partialTotalMatrixes = (double**)malloc(sizeof(double*) * THREAD_COUNT);
+    for (int i = 0; i < THREAD_COUNT; i++)
+    {
+        partialTotalMatrixes[i] = (double*)malloc(sizeof(double)*N*N);
+    }
 
-    //Declare and alloc totalMatrix
+    //Initialize partial total matrixes
+    if(DEBUG_MODE) {printf("Initializing partial Total Matrixes\n");}    
+    for (int m = 0; m < THREAD_COUNT; m++)
+    {
+        for(int i=0;i<N;i++)
+        {
+            for(int j=0;j<N;j++)
+            {
+                partialTotalMatrixes[m][i*N+j] = 0;
+            }
+        }
+    }    
+
+    //Alloc totalMatrix
+    if(DEBUG_MODE) {printf("Allocing totalMatrix\n");}    
     totalMatrix = (double*)malloc(sizeof(double)*N*N);
 
     //Initialize totalMatrix
-    for(i=0;i<N;i++){
-        for(j=0;j<N;j++)
+    if(DEBUG_MODE) {printf("Initializing totalMatrix\n");}    
+    for(int i=0;i<N;i++){
+        for(int j=0;j<N;j++)
         {
             totalMatrix[i*N+j] = 0;
         }
     }
-    
-    printFirstRow(totalMatrix, "totalMatrix before process");
 
-    //Declare and alloc array of matrixes
-    //double *array[matrixCount]; THIS FOR DYNAMIC matrix count
-
-    debugP("allocing memory for matrices");
-    printf("Matrix count: %i", matrixCount);
-
-    for(int i = 0; i < matrixCount; i++)
+    //alloc matrixes
+    if(DEBUG_MODE) {printf("Allocing matrixes\n");}    
+    matrixes = (double**)malloc(sizeof(double*) * matrixCount);
+    for (int i = 0; i < matrixCount; i++)
     {
-        array[i] = (double*)malloc(sizeof(double)*N*N);
+        matrixes[i] = (double*)malloc(sizeof(double)*N*N);
     }
 
-    //Array accessor
-    double *(*p)[] = &array;
+    //Initialize matrixes
+    if(DEBUG_MODE) {printf("Initializing matrixes\n");}    
+    for (int m = 0; m < matrixCount; m++)
+    {
+        for(i=0;i<N;i++)
+        {
+            for(j=0;j<N;j++)
+            {
+                //Assign random value
+                matrixes[m][i*N+j] = ((double)rand() * ( rand_high - rand_low ) ) / (double)RAND_MAX + rand_low;
+            }
+        }
+    }
 
-    debugP("Launching threads");
+    //Start taking time
+    printf("Starting calculations\n");
+    timetick = dwalltime();
     
     //Launch Threads
     for(int i = 0; i < THREAD_COUNT; i++)
     {
-        printf("Launching thread %i\n", i);
+        if(DEBUG_MODE){printf("Launching thread %i\n", i);}
 
         thread_ids[i] = i;
         pthread_create(
@@ -111,27 +141,34 @@ int main(int argc, char const *argv[])
         );
     }
     
-    debugP("Waiting threads to end");
+    if(DEBUG_MODE){printf("Waiting threads to end\n");}
 
     //Wait for threads to end
     for(int i = 0; i < THREAD_COUNT; i++)
     {
         pthread_join(threads[i], NULL);
-        printf("thread %i ended\n", i);
+        if(DEBUG_MODE){printf("thread %i ended\n", i);}
     }
-
-    debugP("Printing results");
+    
+    //Print process time
+    printf("Time in seconds: %f\n", dwalltime() - timetick);
 
     //Print some results
-    printFirstRow(totalMatrix, "totalMatrix");
+    if(DEBUG_MODE){printf("Printing results\n");}
+    if(DEBUG_MODE){printFirstRow(totalMatrix, "totalMatrix");}
     
-    printf("Tiempo en segundos %f \n", dwalltime() - timetick);
     
     //FreeMemory
     for(int m = 0; m < matrixCount; m++)
     {
-        free((*p)[m]);
+        free(matrixes[m]);
     }
+    free(matrixes);
+    for(int m = 0; m < THREAD_COUNT; m++)
+    {
+        free(partialTotalMatrixes[m]);
+    }
+    free(partialTotalMatrixes);
     free(totalMatrix);
 
     return 0;
@@ -151,21 +188,13 @@ double dwalltime()
 
 void printFirstRow(double *matrix, char *name)
 {   
-    printf("Matrix: %s\n [", name);
+    printf("\nMatrix: %s\n[", name);
     for(int i = 0; i < N; i++)
     {
         printf("%f,", matrix[i]);
     }
     printf("]\n\n");
     
-}
-
-void debugP(char *string)
-{
-    if(DEBUG_MODE)
-    {
-        printf("\n\n**********\nDEBUG: %s\n**********\n\n", string);
-    }
 }
 
 void *processAndAddMatrix(void *matrix_ptr)
@@ -230,7 +259,7 @@ void *processAndAddMatrixes(void *task_id_ptr)
     ptr = (int*) task_id_ptr;
     task_id = *ptr;
 
-    printf("Starting thread %i\n", task_id);
+    if(DEBUG_MODE){printf("Starting thread %i\n", task_id);}
     
     int m, i, j;
     double maxM, minM, avgM, e;
@@ -238,15 +267,11 @@ void *processAndAddMatrixes(void *task_id_ptr)
     maxM = 0;
     minM = DBL_MAX;
     avgM = 0;
-
-    //Array accessor
-    double *(*p)[] = &array;
     
     //Work on each matrix
-    //for(int m = task_id * chunk_size; (m+1) <= task_id+1 + ((task_id+1) * chunk_size); m++)
     for(int m = task_id * chunk_size; m < (task_id * chunk_size) + chunk_size; m++)    
     {
-        printf("Processing matrix %i on thread %i\n", m, task_id);
+        if(DEBUG_MODE){printf("Processing matrix %i on thread %i\n", m, task_id);}
         
         maxM = 0;
         minM = DBL_MAX;
@@ -255,21 +280,18 @@ void *processAndAddMatrixes(void *task_id_ptr)
         for(i=0;i<N;i++){
             for(j=0;j<N;j++)
             {
-                //Assign random value
-                (*p)[m][i*N+j] = ((double)rand() * ( rand_high - rand_low ) ) / (double)RAND_MAX + rand_low;
-
-                //Find Max
-                if((*p)[m][i*N+j] > maxM)
+                //Find Max and min
+                if(matrixes[m][i*N+j] > maxM)
                 {
-                    maxM = (*p)[m][i*N+j];
+                    maxM = matrixes[m][i*N+j];
                 } 
-                else if((*p)[m][i*N+j] < minM)
+                else if(matrixes[m][i*N+j] < minM)
                 {
-                    minM = (*p)[m][i*N+j];
+                    minM = matrixes[m][i*N+j];
                 }
 
                 //sum Avg
-                avgM = avgM + (*p)[m][i*N+j];
+                avgM = avgM + matrixes[m][i*N+j];
             }
         }
 
@@ -280,25 +302,36 @@ void *processAndAddMatrixes(void *task_id_ptr)
         e = (maxM - minM) / avgM;
 
         //Print Matrix Data
-        printf("\n Matrix %i: maxM = %f | minM = %f | avgM = %f | e = %f \n", m, maxM, minM, avgM, e);
-        //printFirstRow((*p)[m], "Random");
+        if(DEBUG_MODE){printf("Matrix %i: maxM = %f | minM = %f | avgM = %f | e = %f \n", m, maxM, minM, avgM, e);}
 
-        //Start Critical Region
-        pthread_mutex_lock(&add_matrix_lock);
-        printf("Adding processed matrix %i on thread %i\n", m, task_id);
-        //calculate e * Mi, then add to totalMatrix
+        //calculate e * Mi, then add to local partial total matrix
         for(i=0;i<N;i++)
         {
             for(j=0;j<N;j++)
             {
-                totalMatrix[i*N+j] = totalMatrix[i*N+j] + ((*p)[m][i*N+j] * e);
+                partialTotalMatrixes[task_id][i*N+j] = partialTotalMatrixes[task_id][i*N+j] + (matrixes[m][i*N+j] * e);
             }
         }
-        //End Critial Region
-        pthread_mutex_unlock(&add_matrix_lock);
-        printf("Added processed matrix %i on thread %i\n", m, task_id);
     }
 
+    //add partialTotalMatrix to totalMatrix
+    //Start Critical Region
+        pthread_mutex_lock(&add_matrix_lock);
+        if(DEBUG_MODE){printf("Adding processed matrix %i on thread %i\n", m, task_id);}
+
+        //add partial matrix from thread to totalMatrix        
+        for(i=0;i<N;i++)
+        {
+            for(j=0;j<N;j++)
+            {
+                totalMatrix[i*N+j] = totalMatrix[i*N+j] + partialTotalMatrixes[task_id][i*N+j];
+            }
+        }
+        
+        //End Critial Region
+        pthread_mutex_unlock(&add_matrix_lock);
+        if(DEBUG_MODE){printf("Added processed matrix %i on thread %i\n", m, task_id);}
+    
     //Close thread
     pthread_exit(0);
 }
